@@ -30,7 +30,33 @@ module Rubaidh # :nodoc:
   # The core functionality to connect a Rails application
   # to a Google Analytics installation.
   class GoogleAnalytics
-  
+    
+    @@custom_vars = { }
+    ##
+    # :singleton-method
+    # Specify a custom variable to include in the analytics javascript
+    # name: variable name
+    # value: variable value
+    # slot: variable slot (1,2,3,4, or 5)
+    # scope: variable scope (page => 3, sesion => 2, visitor => 1)
+    def self.set_custom_var(name, value, slot = 1, scope = 3)
+      @@custom_vars[name] = { :value => value, :slot => slot, :scope => scope }
+    end
+    
+    ##
+    # :singleton-method
+    # Clear all custom variables currently set
+    def self.clear_all_custom_vars()
+      @@custom_vars = { }
+    end
+    
+    ##
+    # :singleton-method
+    # Clear the custom variable specified
+    def self.clear_custom_var(name)
+      @@custom_vars[name].delete
+    end
+    
     @@tracker_id = nil
     ##
     # :singleton-method:
@@ -157,6 +183,11 @@ module Rubaidh # :nodoc:
         self.override_domain_name = nil
       end
       
+      custom_vars = ""
+      @@custom_vars.each do |name, var|
+        custom_vars += "pageTracker._setCustomVar(#{var[:slot]}, \"#{name}\", \"#{var[:value]}\", #{var[:scope]});"
+      end
+      
       code = if local_javascript
         <<-HTML
         <script src="#{LocalAssetTagHelper.new.javascript_path( 'ga.js' )}" type="text/javascript">
@@ -178,6 +209,7 @@ module Rubaidh # :nodoc:
       var pageTracker = _gat._getTracker('#{request_tracker_id}');
       #{extra_code}
       pageTracker._initData();
+      #{custom_vars}
       pageTracker._trackPageview(#{request_tracked_path});
       } catch(err) {}
       //--><!]]>
