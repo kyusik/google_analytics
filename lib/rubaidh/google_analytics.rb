@@ -17,7 +17,9 @@ module Rubaidh # :nodoc:
     # to load the code at the top of the page
     # (see http://www.google.com/support/googleanalytics/bin/answer.py?answer=55527&topic=11006)
     def add_google_analytics_code
-      if GoogleAnalytics.defer_load
+      if GoogleAnalytics.asynchronous_mode
+        response.body.sub! /<[bB][oO][dD][yY]>/, "<body>#{google_analytics_code}" if response.body.respond_to?(:sub!)
+      elsif GoogleAnalytics.defer_load
         response.body.sub! /<\/[bB][oO][dD][yY]>/, "#{google_analytics_code}</body>" if response.body.respond_to?(:sub!)
       else
         response.body.sub! /(<[bB][oO][dD][yY][^>]*>)/, "\\1#{google_analytics_code}" if response.body.respond_to?(:sub!)
@@ -55,6 +57,15 @@ module Rubaidh # :nodoc:
     # Specify whether the legacy Google Analytics code should be used. By
     # default, the new Google Analytics code is used.
     cattr_accessor :legacy_mode
+
+    @@asynchronous_mode = false
+    ##
+    # :singleton-method:
+    # Specify whether the new Asynchronous Google Analytics code should be used.
+    # By default, the synchronous Google Analytics code is used.
+    # For more information:
+    # http://code.google.com/apis/analytics/docs/tracking/asyncTracking.html
+    cattr_accessor :asynchronous_mode
     
     @@analytics_url = 'http://www.google-analytics.com/urchin.js'
     ##
@@ -149,6 +160,7 @@ module Rubaidh # :nodoc:
     # Construct the javascript code to be inserted on the calling page. The +ssl+
     # parameter can be used to force the SSL version of the code in legacy mode only.
     def self.google_analytics_code(ssl = false)
+      return asynchronous_google_analytics_code if asynchronous_mode
       return legacy_google_analytics_code(ssl) if legacy_mode
 
       extra_code = domain_name.blank? ? nil : "pageTracker._setDomainName(\"#{domain_name}\");"
@@ -203,6 +215,26 @@ module Rubaidh # :nodoc:
       _uacct = "#{request_tracker_id}";
       #{extra_code}
       urchinTracker(#{request_tracked_path});
+      </script>
+      HTML
+    end
+
+    # Construct the new asynchronous version of the Google Analytics code.
+    def self.asynchronous_google_analytics_code
+
+      code = <<-HTML
+      <script type="text/javascript">
+
+        var _gaq = _gaq || [];
+        _gaq.push(['_setAccount', '#{request_tracker_id}']);
+        _gaq.push(['_trackPageview(#{request_tracked_path})']);
+
+        (function() {
+          var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+          ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+          (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ga);
+        })();
+
       </script>
       HTML
     end
