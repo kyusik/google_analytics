@@ -26,13 +26,20 @@ and run:
 Simple. :-)
 
 
-== Note
+== Google Analytics Tracking Code versions
 
 This version of the plugin uses the new Google Analytics code (ga.js) by
-default. To use the legacy tracking code add the following line to your
+default.
+
+To use the legacy tracking code add the following line to your
 <tt>config/environment.rb</tt>:
 
     Rubaidh::GoogleAnalytics.legacy_mode = true
+
+To use new asynchronous tracking code add the following line to your
+<tt>config/environment.rb</tt>:
+
+    Rubaidh::GoogleAnalytics.asynchronous_mode = true
 
 == Tracking outbound Links
 
