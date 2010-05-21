@@ -186,47 +186,15 @@ module Rubaidh # :nodoc:
     # Construct the javascript code to be inserted on the calling page. The +ssl+
     # parameter can be used to force the SSL version of the code in legacy mode only.
     def self.google_analytics_code(ssl = false)
-      return asynchronous_google_analytics_code if asynchronous_mode
-      return legacy_google_analytics_code(ssl) if legacy_mode
-
-      extra_code = domain_name.blank? ? nil : "pageTracker._setDomainName(\"#{domain_name}\");"
-      if !override_domain_name.blank?
-        extra_code = "pageTracker._setDomainName(\"#{override_domain_name}\");"
-        self.override_domain_name = nil
-      end
-      
-      custom_vars = ""
-      @@custom_vars.each do |name, var|
-        custom_vars += "pageTracker._setCustomVar(#{var[:slot]}, \"#{name}\", \"#{var[:value]}\", #{var[:scope]});"
-      end
-      
-      code = if local_javascript
-        <<-HTML
-        <script src="#{LocalAssetTagHelper.new.javascript_path( 'ga.js' )}" type="text/javascript">
-        </script>
-        HTML
+      if asynchronous_mode
+        code = asynchronous_google_analytics_code
+      elsif legacy_mode
+        code = legacy_google_analytics_code(ssl)
       else
-        <<-HTML
-      <script type="text/javascript">
-      var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-      document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-      </script>
-        HTML
+        code = synchronous_google_analytics_code(ssl)
       end
       
-      code << <<-HTML
-      <script type="text/javascript">
-      <!--//--><![CDATA[//><!--
-      try {
-      var pageTracker = _gat._getTracker('#{request_tracker_id}');
-      #{extra_code}
-      pageTracker._initData();
-      #{custom_vars}
-      pageTracker._trackPageview(#{request_tracked_path});
-      } catch(err) {}
-      //--><!]]>
-      </script>
-      HTML
+      return code
     end
 
     # Construct the legacy version of the Google Analytics code. The +ssl+
@@ -251,22 +219,79 @@ module Rubaidh # :nodoc:
       HTML
     end
 
+    # Construct the synchronous version of the Google Analytics code.
+    def self.synchronous_google_analytics_code(ssl = false)
+      if !override_domain_name.blank?
+        domain_code = "pageTracker._setDomainName(\"#{override_domain_name}\");"
+        self.override_domain_name = nil
+      elsif !domain_name.blank?
+        domain_code = "pageTracker._setDomainName(\"#{domain_name}\");"
+      else
+        domain_code = nil
+      end
+      
+      custom_vars = []
+      @@custom_vars.each do |name, var|
+        custom_vars << "pageTracker._setCustomVar(#{var[:slot]}, \"#{name}\", \"#{var[:value]}\", #{var[:scope]});"
+      end
+      
+      if local_javascript
+        code = <<-HTML
+        <script src="#{LocalAssetTagHelper.new.javascript_path( 'ga.js' )}" type="text/javascript">
+        </script>
+        HTML
+      else
+        code = <<-HTML
+        <script type="text/javascript">
+          var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+          document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+        </script>
+        HTML
+      end
+      
+      code << <<-HTML
+      <script type="text/javascript">
+        <!--//--><![CDATA[//><!--
+          try {
+            var pageTracker = _gat._getTracker('#{request_tracker_id}');
+            #{domain_code}
+            pageTracker._initData();
+            #{custom_vars.empty? ? nil : custom_vars.join("\n")}
+            pageTracker._trackPageview(#{request_tracked_path});
+          } catch(err) {}
+        //--><!]]>
+      </script>
+      HTML
+    end
+
     # Construct the new asynchronous version of the Google Analytics code.
     def self.asynchronous_google_analytics_code
+      if !override_domain_name.blank?
+        domain_code = "_gaq.push(['_setDomainName', '#{override_domain_name}']);"
+        self.override_domain_name = nil
+      elsif !domain_name.blank?
+        domain_code = "_gaq.push(['_setDomainName', '#{domain_name}']);"
+      else
+        domain_code = nil
+      end
+        
+      custom_vars = []
+      @@custom_vars.each do |name, var|
+        custom_vars << "_gaq.push(['_setCustomVar', '#{name}', '#{var[:value]}', #{var[:scope]}]);"
+      end
 
       code = <<-HTML
       <script type="text/javascript">
-
         var _gaq = _gaq || [];
         _gaq.push(['_setAccount', '#{request_tracker_id}']);
+        #{domain_code}
+        #{custom_vars.empty? ? nil : custom_vars.join("\n")}
         _gaq.push(['_trackPageview(#{request_tracked_path})']);
-
         (function() {
           var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
           ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
           (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(ga);
         })();
-
       </script>
       HTML
     end

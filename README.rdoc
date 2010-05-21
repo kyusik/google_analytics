@@ -41,6 +41,15 @@ To use new asynchronous tracking code add the following line to your
 
     Rubaidh::GoogleAnalytics.asynchronous_mode = true
 
+== Tracking custom variables
+
+You can track custom variables by setting the variable using:
+
+    Rubaidh::GoogleAnalytics.set_custom_var(name, value, slot = 1, scope = 3)
+
+You can set more than one custom variable at a time by making repeated calls to
++set_custom_var+ with different variable names.
+
 == Tracking outbound Links
 
 Google Analytics only tracks intra-site links by default. To create an
