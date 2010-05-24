@@ -191,7 +191,7 @@ module Rubaidh # :nodoc:
       elsif legacy_mode
         code = legacy_google_analytics_code(ssl)
       else
-        code = synchronous_google_analytics_code(ssl)
+        code = synchronous_google_analytics_code
       end
       
       return code
@@ -220,7 +220,7 @@ module Rubaidh # :nodoc:
     end
 
     # Construct the synchronous version of the Google Analytics code.
-    def self.synchronous_google_analytics_code(ssl = false)
+    def self.synchronous_google_analytics_code
       if !override_domain_name.blank?
         domain_code = "pageTracker._setDomainName(\"#{override_domain_name}\");"
         self.override_domain_name = nil
