@@ -17,12 +17,26 @@ module Rubaidh # :nodoc:
     # to load the code at the top of the page
     # (see http://www.google.com/support/googleanalytics/bin/answer.py?answer=55527&topic=11006)
     def add_google_analytics_code
-      if GoogleAnalytics.asynchronous_mode
-        response.body.sub! /<[bB][oO][dD][yY]>/, "<body>#{google_analytics_code}" if response.body.respond_to?(:sub!)
-      elsif GoogleAnalytics.defer_load
-        response.body.sub! /<\/[bB][oO][dD][yY]>/, "#{google_analytics_code}</body>" if response.body.respond_to?(:sub!)
-      else
-        response.body.sub! /(<[bB][oO][dD][yY][^>]*>)/, "\\1#{google_analytics_code}" if response.body.respond_to?(:sub!)
+      begin
+        if GoogleAnalytics.asynchronous_mode
+          response.body.sub! /<body>/ui, "<body>#{google_analytics_code}" if response.body.respond_to?(:sub!)
+        elsif GoogleAnalytics.defer_load
+          response.body.sub! /<\/body>/ui, "#{google_analytics_code}</body>" if response.body.respond_to?(:sub!)
+        else
+          response.body.sub! /(<body[^>]*>)/ui, "\\1#{google_analytics_code}" if response.body.respond_to?(:sub!)
+        end
+      rescue
+        # Fail gracefully without inserting the google analytics code.
+        error_class = "Google Analytics Plugin Error"
+        error_msg = "Google Analytics Plugin Error, tracking code not inserted (#{e.message})"
+        if defined?(HopToadNotifier)
+          HopToadNotifier.notify(
+            :error_class => error_class,
+            :error_message => "#{error_class}: #{error_msg}",
+            :parameters => params
+          )
+        end
+        Rails.logger.warn(error_msg)
       end
     end
   end
