@@ -25,7 +25,7 @@ module Rubaidh # :nodoc:
         else
           response.body.sub! /(<body[^>]*>)/ui, "\\1#{google_analytics_code}" if response.body.respond_to?(:sub!)
         end
-      rescue
+      rescue Exception => e
         # Fail gracefully without inserting the google analytics code.
         error_class = "Google Analytics Plugin Error"
         error_msg = "Google Analytics Plugin Error, tracking code not inserted (#{e.message})"
